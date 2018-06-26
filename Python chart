@@ -1,4 +1,4 @@
-# The titanic project
+### The titanic project
 
 #import libraries
 import os
@@ -25,30 +25,37 @@ train_data['target_name']=train_data['Survived'].map({0:'Not Survived',1:'Surviv
 #2nd plot distribution of columns by groups
 #3rd plot average value between different groups
 #4th plot outlier for different groups
+
+ft=14
+ptitle='Survived or not survived?'
+
 for column in numeric_features:
     #Figure initiation
     fig=plt.figure(figsize=(18,12))
     #Distribution plot
     sns.distplot(train_data[column].dropna(),ax=plt.subplot(221))
-    plt.xlabel(column,fontsize=14)
-    plt.ylabel('density',fontsize=14)
+    plt.xlabel(column,fontsize=ft)
+    plt.ylabel('density',fontsize=ft)
     plt.suptitle('Plots for '+column,fontsize=18)
+    
     #Distribution per Survived/ Not Survived Value
     sns.distplot(train_data.loc[train_data.Survived==0,column].dropna(),
                 color='red',label='Not Survived',ax=plt.subplot(222))
     sns.distplot(train_data.loc[train_data.Survived==1,column].dropna(),
                  color='blue',label='Survived',ax=plt.subplot(222))
     plt.legend(loc='best')
-    plt.xlabel(column,fontsize=14)
-    plt.ylabel('Density per Survived/ Not Survived Value',fontsize=14)
+    plt.xlabel(column,fontsize=ft)
+    plt.ylabel('Density per ' + ptitle,fontsize=ft)
+    
     #Average column value per Survived/Not survivd value
     sns.barplot(x='target_name',y=column,data=train_data,ax=plt.subplot(223))
-    plt.xlabel('Survived or Not Survived?',fontsize=14)
-    plt.ylabel('Average '+column,fontsize=14)
+    plt.xlabel(ptitle,fontsize=ft)
+    plt.ylabel('Average '+column,fontsize=ft)
+    
     #Boxplot of column per survived/ not survived value
     sns.boxplot(x='target_name',y=column,data=train_data,ax=plt.subplot(224))
-    plt.xlabel('Survived or not survived?',fontsize=14)
-    plt.ylabel(column,fontsize=14)
+    plt.xlabel(ptitle,fontsize=ft)
+    plt.ylabel(column,fontsize=ft)
     plt.show()
 
 ###Plot categorical features
@@ -56,19 +63,20 @@ for column in ordinal_features:
     fig=plt.figure(figsize=(18,18))
     #average column value per Survived/ Not Survived Value
     sns.barplot(x='target_name',y=column,data=train_data,ax=plt.subplot(321))
-    plt.xlabel('Survived or Not Survived?',fontsize=14)
-    plt.ylabel('Average '+column,fontsize=14)
+    plt.xlabel(ptitle,fontsize=ft)
+    plt.ylabel('Average '+column,fontsize=ft)
     plt.suptitle('Plots for '+column,fontsize=18)
+    
     #boxplot of column per Survived/ Not Survived Value
     sns.boxplot('target_name',y=column,data=train_data,ax=plt.subplot(322))
-    plt.xlabel('Survived or Not Survived?',fontsize=14)
-    plt.ylabel(column,fontsize=14)
+    plt.xlabel(ptitle,fontsize=ft)
+    plt.ylabel(column,fontsize=ft)
 
     #number of occurances per category
     ax=sns.countplot(x=column,hue='target_name',data=train_data,ax=plt.subplot(312))
-    plt.xlabel(column,fontsize=14)
-    plt.ylabel('Number of occurences',fontsize=14)
-    plt.legend(loc=1)
+    plt.xlabel(column,fontsize=ft)
+    plt.ylabel('Number of occurences',fontsize=ft)
+    plt.legend(loc='upper right')
 
     #adding percents over bars
     height=[p.get_height() if p.get_height()==p.get_height() else 0 for p in ax.patches]
@@ -81,4 +89,39 @@ for column in ordinal_features:
     sns.pointplot(x=column,y='Survived',data=train_data,ax=plt.subplot(313))
     plt.xlabel(column,fontsize=14)
     plt.ylabel('Survived Percentage',fontsize=14)
+    
+for column in nominal_features:
+    fig=plt.figure(figsize=(18,12))
+
+    #Number of occurrences per category
+    ax=sns.countplot(x=column,hue='target_name',data=train_data,ax=plt.subplot(211))
+    plt.xlabel(column,fontsize=ft)
+    plt.ylabel('Number of occurrences',fontsize=ft)
+    plt.suptitle('Plots for '+ column,fontsize=18)
+    plt.legend(loc=1)
+    #add percents over bars
+    height=[p.get_height() for p in ax.patches]
+    ncol=int(len(height)/2)
+    total=[height[i]+height[i+ncol] for i in range(ncol)]*2
+    for i,p in enumerate(ax.patches):
+        ax.text(p.get_x()+p.get_width()/2,height[i]*1.01+10,'{:1.0%}'.format(float(height[i])/total[i]),ha='center',size=14)
+
+    #Survived percentage for every value of feature
+    sns.pointplot(x=column,y='Survived',data=train_data,ax=plt.subplot(212))
+    plt.xlabel(column,fontsize=14)
+    plt.ylabel('Survived Percentage',fontsize=14)
     plt.show()
+
+    
+    ###Explanation
+    #subplot(nrows, ncols, index, **kwargs)： subplot(2, 2, 1) and subplot(221) both create an Axes at the top left corner of the 
+    #current figure, occupying half of the figure height and half of the figure width.Row 2 and column 2 grid, 1st graph. If ax=subplot() 
+    #is the same, then graphic will overlap.
+    
+    #legend() loc :identify the location putting the legend,eg: best, center left,lower center
+    
+    #get_height(),get_x(),get_width():getting bar height, starting pos and width of the graph. 
+    #height[i]/total[i] is calculating the percentage og the bar value to the group total value.
+    
+    #if division is int by int, use float() to transform one of them into float
+    
