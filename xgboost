@@ -1,1 +1,101 @@
+###code web address
 https://github.com/Kulbear/New-York-City-Taxi-Trip-Duration/blob/master/xgboost.ipynb
+
+### import libraries
+import numpy as np
+import pandas as pd
+import xgboost as xgb
+from sklearn.decomposition import PCA
+from sklearn.tree import DecisionTreeRegressor
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.model_selection import train_test_split
+%matplotlib inline
+seed_set = 311
+np.random.seed(seed_set)
+import seaborn as sns
+import matplotlib.pyplot as plt
+plt.rcParams['figure.figsize'] = [16, 10]
+from IPython.core.interactiveshell import InteractiveShell
+InteractiveShell.ast_node_interactivity = "all"
+
+###deal with location data
+AVG_EARTH_RADIUS = 6371 # in km
+def haversine(point1, point2, miles=False):
+    # Unpack latitude/longitude
+    lat1, lng1 = point1
+    lat2, lng2 = point2
+
+    # Convert all latitudes/longitudes from decimal degrees to radians
+    lat1, lng1, lat2, lng2 = map(np.radians, (lat1, lng1, lat2, lng2))
+    
+    # Calculate haversine
+    lat, lng= lat2 - lat1, lng2 - lng1
+    d = np.sin(lat * 0.5) ** 2 + np.cos(lat1) * np.cos(lat2) * np.sin(lng * 0.5) ** 2
+    h = 2 * AVG_EARTH_RADIUS * np.arcsin(np.sqrt(d))
+    return h * 0.621371 if miles else h # in m/k
+    
+ def dummy_manhattan_distance(point1, point2):
+    lat1, lng1 = point1
+    lat2, lng2 = point2
+    a = haversine((lat1, lng1), (lat1, lng2))
+    b = haversine((lat1, lng1), (lat2, lng1))
+    return haversine((lat1, lng1), (lat1, lng2)) + haversine((lat1, lng1), (lat2, lng1))
+  
+  def bearing_array(lat1, lng1, lat2, lng2):
+    AVG_EARTH_RADIUS = 6371  # in km
+    lng_delta_rad = np.radians(lng2 - lng1)
+    (lat1, lng1, lat2, lng2) = map(np.radians, (lat1, lng1, lat2, lng2))
+    y = np.sin(lng_delta_rad) * np.cos(lat2)
+    x = np.cos(lat1) * np.sin(lat2) - np.sin(lat1) * np.cos(lat2) * np.cos(lng_delta_rad)
+    return np.degrees(np.arctan2(y, x))
+    
+###load data
+train = pd.read_csv('data/train.csv')
+test = pd.read_csv('data/test.csv')
+
+###build features
+train['distance_haversine'] = haversine((train['pickup_latitude'].values, train['pickup_longitude'].values),(train['dropoff_latitude'].values, train['dropoff_longitude'].values))
+train['distance_dummy_manhattan'] = dummy_manhattan_distance((train['pickup_latitude'].values, train['pickup_longitude'].values),(train['dropoff_latitude'].values, train['dropoff_longitude'].values))
+train['direction'] = bearing_array(train['pickup_latitude'].values, train['pickup_longitude'].values, train['dropoff_latitude'].values, train['dropoff_longitude'].values)
+train['center_latitude'] = (train['pickup_latitude'].values + train['dropoff_latitude'].values) / 2
+train['center_longitude'] = (train['pickup_longitude'].values + train['dropoff_longitude'].values) / 2
+
+test['distance_haversine'] = haversine((test['pickup_latitude'].values, test['pickup_longitude'].values),(test['dropoff_latitude'].values, test['dropoff_longitude'].values))
+test['distance_dummy_manhattan'] = dummy_manhattan_distance((test['pickup_latitude'].values, test['pickup_longitude'].values),(test['dropoff_latitude'].values, test['dropoff_longitude'].values))
+test['direction'] = bearing_array(test['pickup_latitude'].values, test['pickup_longitude'].values, test['dropoff_latitude'].values, test['dropoff_longitude'].values)
+test['center_latitude'] = (test['pickup_latitude'].values + test['dropoff_latitude'].values) / 2
+test['center_longitude'] = (test['pickup_longitude'].values + test['dropoff_longitude'].values) / 2
+
+###convert time to format
+
+train[['pickup_datetime''pickup ] = pd.to_datetime(train['pickup_datetime'])
+test['pickup_datetime'] = pd.to_datetime(train['pickup_datetime'])
+train['pickup_date'] = train['pickup_datetime'].dt.date
+train['pickup_weekday'] = train['pickup_datetime'].dt.weekday
+train['pickup_day'] = train['pickup_datetime'].dt.day
+train['pickup_month'] = train['pickup_datetime'].dt.month
+train['pickup_hour'] = train['pickup_datetime'].dt.hour
+train['pickup_minute'] = train['pickup_datetime'].dt.minute
+train['pickup_am'] = train['pickup_hour'] < 12
+
+test['pickup_date'] = test['pickup_datetime'].dt.date
+test['pickup_weekday'] = test['pickup_datetime'].dt.weekday
+test['pickup_day'] = test['pickup_datetime'].dt.day
+test['pickup_month'] = test['pickup_datetime'].dt.month
+test['pickup_hour'] = test['pickup_datetime'].dt.hour
+test['pickup_minute'] = test['pickup_datetime'].dt.minute
+test['pickup_am'] = test['pickup_hour'] < 12
+
+# These time periods are based on visuls below
+train['night_trip'] = [True if x < 7 else False for x in train['pickup_hour']]
+train['rush_hour'] = [True if 9 < x < 20 else False for x in train['pickup_hour']]
+train['weekday'] = [True if x < 5 else False for x in train['pickup_weekday']]
+test['night_trip'] = [True if x < 7 else False for x in test['pickup_hour']]
+test['rush_hour'] = [True if 9 < x < 20 else False for x in test['pickup_hour']]
+test['weekday'] = [True if x < 5 else False for x in test['pickup_weekday']]
+
+#convert target variables
+train['log_trip_duration'] = np.log(train['trip_duration'].values + 1)
+
+
+
