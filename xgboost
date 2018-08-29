@@ -97,5 +97,93 @@ test['weekday'] = [True if x < 5 else False for x in test['pickup_weekday']]
 #convert target variables
 train['log_trip_duration'] = np.log(train['trip_duration'].values + 1)
 
+###Visualization
+#duration histogram
+plt.hist(train['log_trip_duration'].values, bins=100)
+plt.xlabel('log(trip_duration)')
+plt.ylabel('number of train records')
+plt.show()
+
+###period and area overlap
+#count number of records from train and test data
+plt.plot(train.groupby('pickup_date').count()[['id']], 'o-', label='train')
+plt.plot(test.groupby('pickup_date').count()[['id']], 'o-', label='test')
+plt.title('Train and test period complete overlap.')
+plt.legend(loc=0)
+plt.ylabel('number of records')
+plt.show()
+
+#count number of records from different areas
+N = 100000
+fig, ax = plt.subplots(ncols=2, sharex=True, sharey=True)
+ax[0].plot(train['pickup_longitude'].values[:N],train['pickup_latitude'].values[:N],'b.',label='train',alpha=0.1)
+ax[1].plot(test['pickup_longitude'].values[:N],test['pickup_latitude'].values[:N],'g.',label='test',alpha=0.1)
+fig.suptitle('Train and test area complete overlap.')
+ax[0].legend(loc=0)
+ax[0].set_ylabel('latitude')
+ax[0].set_xlabel('longitude')
+ax[1].set_xlabel('longitude')
+ax[1].legend(loc=0)
+plt.ylim([40.5, 41])
+plt.xlim([-74.5, -73.5])
+plt.show()
+
+full = pd.concat([train, test])
+coords = np.vstack((full[['pickup_latitude', 'pickup_longitude']], full[['dropoff_latitude', 'dropoff_longitude']]))
+coords.shape
+
+###reduce demensionality
+pca = PCA().fit(coords)
+train['pickup_pca0'] = pca.transform(train[['pickup_latitude', 'pickup_longitude']])[:, 0]
+train['pickup_pca1'] = pca.transform(train[['pickup_latitude', 'pickup_longitude']])[:, 1]
+train['dropoff_pca0'] = pca.transform(train[['dropoff_latitude', 'dropoff_longitude']])[:, 0]
+train['dropoff_pca1'] = pca.transform(train[['dropoff_latitude', 'dropoff_longitude']])[:, 1]
+train['pca_manhattan'] = np.abs(train['dropoff_pca1'] - train['pickup_pca1']) + np.abs(train['dropoff_pca0'] - train['pickup_pca0'])
+
+test['pickup_pca0'] = pca.transform(test[['pickup_latitude', 'pickup_longitude']])[:, 0]
+test['pickup_pca1'] = pca.transform(test[['pickup_latitude', 'pickup_longitude']])[:, 1]
+test['dropoff_pca0'] = pca.transform(test[['dropoff_latitude', 'dropoff_longitude']])[:, 0]
+test['dropoff_pca1'] = pca.transform(test[['dropoff_latitude', 'dropoff_longitude']])[:, 1]
+test['pca_manhattan'] = np.abs(test['dropoff_pca1'] - test['pickup_pca1']) + np.abs(test['dropoff_pca0'] - test['pickup_pca0'])
+
+#remove useless columns
+DO_NOT_USE_FOR_TRAINING = ['id', 'pickup_datetime', 'dropoff_datetime', 'pickup_longitude', 'pickup_latitude',
+    'dropoff_longitude','dropoff_latitude', 'trip_duration', 'pickup_date', 'log_trip_duration]
+    
+new_df = train.drop([col for col in DO_NOT_USE_FOR_TRAINING if col in train], axis=1)
+new_df_test = test.drop([col for col in DO_NOT_USE_FOR_TRAINING if col in test], axis=1)
+
+new_df['store_and_fwd_flag'] = 1 *  new_df['store_and_fwd_flag'] == True
+new_df_test['store_and_fwd_flag'] = 1 *  new_df['store_and_fwd_flag'] == True
+new_df.shape, new_df_test.shape
+new_df.columns == new_df_test.columns
+
+###generate training and testing data
+# Use log to handle outliers
+y = np.log(train['trip_duration'].values)
+train_attr = np.array(new_df)
+train_attr.shape
+train_x, val_x, train_y, val_y = train_test_split(train_attr, y, test_size=0.2)
+
+dtrain = xgb.DMatrix(train_x, label=train_y)
+dvalid = xgb.DMatrix(val_x, label=val_y)
+dtest = xgb.DMatrix(new_df_test.values)
+watchlist = [(dtrain, 'train'), (dvalid, 'valid')]
+
+xgb_pars = {'min_child_weight': 100, 'eta': 0.1, 'colsample_bytree': 0.7, 'max_depth': 15,
+            'subsample': 0.8, 'lambda': 1., 'nthread': -1, 'booster' : 'gbtree', 'silent': 1,
+            'eval_metric': 'rmse', 'objective': 'reg:linear'}
+model_xgb = xgb.train(xgb_pars, dtrain, 500, watchlist, early_stopping_rounds=50,maximize=False, verbose_eval=20)
+print('XGB Modeling RMSLE %.5f' % model_xgb.best_score)
+def rmse(y_true, y_pred):
+    return np.sqrt(np.mean(np.square(y_pred - y_true), axis=-1))
+TREE_REGRESSORS = [DecisionTreeRegressor(), RandomForestRegressor()]
+
+models = []
+for regressor in TREE_REGRESSORS:
+    clf = regressor
+    clf = clf.fit(train_x, train_y)
+    models.append(clf)
+
 
 
