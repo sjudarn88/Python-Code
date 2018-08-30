@@ -165,6 +165,7 @@ train_attr = np.array(new_df)
 train_attr.shape
 train_x, val_x, train_y, val_y = train_test_split(train_attr, y, test_size=0.2)
 
+###XGBOOST ALGORITHM
 dtrain = xgb.DMatrix(train_x, label=train_y)
 dvalid = xgb.DMatrix(val_x, label=val_y)
 dtest = xgb.DMatrix(new_df_test.values)
@@ -177,13 +178,35 @@ model_xgb = xgb.train(xgb_pars, dtrain, 500, watchlist, early_stopping_rounds=50
 print('XGB Modeling RMSLE %.5f' % model_xgb.best_score)
 def rmse(y_true, y_pred):
     return np.sqrt(np.mean(np.square(y_pred - y_true), axis=-1))
+    
+###run decision tree and random forest
 TREE_REGRESSORS = [DecisionTreeRegressor(), RandomForestRegressor()]
-
 models = []
 for regressor in TREE_REGRESSORS:
     clf = regressor
     clf = clf.fit(train_x, train_y)
     models.append(clf)
 
+for model in models:
+    # train_y is logged so rmse computes rmsle
+    train_rmsle = rmse(train_y, model.predict(train_x))
+    val_rmsle = rmse(val_y, model.predict(val_x))
+    print('With model: {}\nTrain RMSLE: {}\nVal. RMSLE: {}'.format(model, train_rmsle, val_rmsle))
 
+###predictiing test set
+test_attr = np.array(new_df_test)
+model_rt, model_rf = models
 
+pred_rtpred_rt  ==  model_rtmodel_rt.predict(test_attr)
+pred_rt = np.exp(pred_rt)
+pred_rt
+submission = pd.concat([test['id'], pd.DataFrame(pred_rt, columns=['trip_duration'])], axis=1)
+submission.to_csv('submission-rt.csv',index=False)
+
+pred_xgb = model_xgb.predict(dtest)
+pred_xgb = np.exp(pred_xgb)
+print('Test shape OK.') if test.shape[0] == pred_xgb.shape[0] else print('Oops')
+pred_xgb
+
+submission = pd.concat([test['id'], pd.DataFrame(pred_xgb, columns=['trip_duration'])], axis=1)
+submission.to_csv('submission-xgb.csv',index=False)
