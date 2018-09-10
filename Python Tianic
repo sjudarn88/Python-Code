@@ -1,0 +1,41 @@
+###Load Liraries
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+%matplotlib inline
+sns.set()
+
+import warnings
+from subprocess import check_output
+print(check_output(["ls", "../input"]).decode("utf8"))
+
+###Define Functions
+def get_best_score(model):
+    print(model.best_score_)    
+    print(model.best_params_)
+    print(model.best_estimator_)
+    return model.best_score_
+
+def plot_feature_importances(model, columns):
+    nr_f = 10
+    imp = pd.Series(data = model.best_estimator_.feature_importances_, index=columns).sort_values(ascending=False)
+    plt.figure(figsize=(7,5))
+    plt.title('Feature importance')
+    ax = sns.barplot(y=imp.index[:nr_f], x=imp.values[:nr_f], orient='h')
+    
+###Load data
+df_train = pd.read_csv("../input/train.csv")
+df_test = pd.read_csv("../input/test.csv")
+cols = ['Survived', 'Pclass', 'Age', 'SibSp', 'Parch', 'Fare']
+nr_rows = 2
+nr_cols = 3
+fig, axs = plt.subplots(nr_rows, nr_cols, figsize=(nr_cols*3.5, nr_rows*3))
+
+for r in range(0,nr_rows):
+    for c in range(0,nr_cols):  
+        i = r*nr_cols+c
+        sns.distplot(df_train[cols[i]].dropna(), kde=False, ax = axs[r][c])
+plt.tight_layout()
+
+
