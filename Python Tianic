@@ -28,6 +28,8 @@ def plot_feature_importances(model, columns):
 df_train = pd.read_csv("../input/train.csv")
 df_test = pd.read_csv("../input/test.csv")
 cols = ['Survived', 'Pclass', 'Age', 'SibSp', 'Parch', 'Fare']
+
+###Generate Graphics
 nr_rows = 2
 nr_cols = 3
 fig, axs = plt.subplots(nr_rows, nr_cols, figsize=(nr_cols*3.5, nr_rows*3))
@@ -37,5 +39,29 @@ for r in range(0,nr_rows):
         i = r*nr_cols+c
         sns.distplot(df_train[cols[i]].dropna(), kde=False, ax = axs[r][c])
 plt.tight_layout()
+
+nr_rows = 2
+nr_cols = 3
+
+fig, axs = plt.subplots(nr_rows, nr_cols, figsize=(nr_cols*3.5,nr_rows*3))
+
+for r in range(0,nr_rows):
+    for c in range(0,nr_cols):  
+        
+        i = r*nr_cols+c
+        
+        df0 = df_train[cols[i]][df_train['Survived']==0]
+        df1 = df_train[cols[i]][df_train['Survived']==1]
+        
+        ax = axs[r][c]
+        ax.hist(df0.dropna())
+        ax.hist(df1.dropna())   
+        ax.set_title(cols[i])
+        ax.legend()   
+plt.tight_layout()   
+
+
+
+
 
 
