@@ -1,0 +1,75 @@
+###Load python packages
+import numpy as np
+import pandas as pd
+from sklearn.cluster import KMeans
+import matplotlib.pyplot as plt
+import math
+from sklearn import datasets,linear_model
+from sklearn.model_selection import train_test_split
+import scipy.stats as stats
+import pylab
+
+###Load csv data
+df=pd.read_csv('roofstock.csv')
+
+
+### Generating neighborhood blocks using KMEANS
+sum_of_squared_distances=[]
+K=range(1,20)
+for k in K:
+    km=KMeans(n_clusters=k)
+    km=km.fit(df.iloc[:,0:2])
+    sum_of_squared_distances.append(km.inertia_)
+#plot kmeans elbow plot to determine optimal number of clusters/neighborhood blocks
+plt.plot(K,sum_of_squared_distances,'bx-')
+plt.xlabel('k')
+plt.ylabel('sum_of_squared_distances')
+plt.title('Elbow Method for Optimal K')
+plt.show()
+# Use 15 as the number of optimal clusters
+kmeans=KMeans(n_clusters=15)
+kmeans.fit(df.iloc[:,0:2])
+df['gp']=kmeans.labels_
+
+
+################################################ MODEL FORMULAR
+#p=nq(1+r)**t *e
+#log(p)=log(n)+log(q)+t*log(1+r)+log(e)
+#Y=log(p)-log(q),C0=log(n);X1=t;C1=log(1+r);error=log(e)
+df['Y']=df['p'].apply(lambda x:math.log(x))-df['q'].apply(lambda x:math.log(x))
+df['X1']=df['t']
+group=pd.DataFrame(df['gp'].value_counts())
+
+#therefore: Y=C0+C1*X1+error
+#LOSS FUNCTION: MSE=1/N*SUM(Y-Yh)**2
+#gradient_decent(C1)=2/N*SUM(-X1*(Y-(C1*X+C0)))
+#gradient_decent(C0)=2/N*SUM(-Y-(C1*x+C0))
+
+###Define MSE loss function
+def linear_regression(X,y,C1_current=0,C0_current=0,epochs=1000,learning_rate=0.0001):
+    N=float(len(y))
+    for i in range(epochs):
+        y_current=(C1_current*X)+C0_current
+        cost=sum(data**2 for data in (y-y_current))/N
+        C1_gradient=-(2/N)*sum(X*(y-y_current))
+        C0_gradient=-(2/N)*sum(y-y_current)
+        C1_current=C1_current-(learning_rate*C1_gradient)
+        C0_current=C0_current-(learning_rate*C0_gradient)
+    return np.array([C1_current,C0_current,cost])
+
+###Gather C0,C1,training_cost and testing cost for 15 groups
+L=np.zeros(shape=(15,5))
+for i in range(15):
+    data_set=df[df['gp']==i]
+    X_train, X_test, y_train, y_test = train_test_split(data_set['X1'], data_set['Y'], test_size=0.2)
+    param=linear_regression(X_train,y_train)
+    cost2=sum(data**2 for data in (y_test-(X_test*param[0]+param[1])))/len(y_test)
+    l=np.append(param,np.array([cost2,i]))
+    L[i]=l
+
+###cost of training and testing model
+total_cost_train=sum(L[:,2])
+total_cost_test=sum(L[:,3])
+
+###predictions
+l_data=pd.DataFrame(L)
