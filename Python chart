@@ -142,3 +142,22 @@ for key,group in grouped:
     
     #if division is int by int, use float() to transform one of them into float
     
+  
+from os import path
+data = numpy.array(Data_EMG)                 # convert complete dataset into numpy-array
+x = pylab.linspace(EMG_start, EMG_stop, Amount_samples) # doesn´t change in loop anyway
+
+outpath = "path/of/your/folder/"
+
+fig, ax = plt.subplots()        # generate figure with axes
+image, = ax.plot(x,data[0])     # initialize plot
+ax.xlabel('Time(ms)')
+ax.ylabel('EMG voltage(microV)')
+plt.draw()
+fig.savefig(path.join(outpath,"dataname_0.png")
+
+for i in range(1, len(data)):
+    image.set_data(x,data[i])
+    plt.draw()
+    fig.savefig(path.join(outpath,"dataname_{0}.png".format(i))
+    
